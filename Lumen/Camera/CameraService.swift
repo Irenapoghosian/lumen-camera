@@ -43,6 +43,7 @@ final class CameraService: NSObject, @unchecked Sendable {
     private var isConfigured = false
     private var captureProcessors: [Int64: PhotoCaptureProcessor] = [:]
     private var subjectAreaObserver: NSObjectProtocol?
+    private var runtimeErrorObserver: NSObjectProtocol?
 
     /// Shared with the photo pipeline so every capture matches the preview.
     private let photoContext = CIContext(options: [.cacheIntermediates: false])
@@ -73,6 +74,7 @@ final class CameraService: NSObject, @unchecked Sendable {
         try await onSessionQueue { [self] in
             if !isConfigured {
                 try configureSession(position: .back)
+                observeRuntimeErrors()
                 isConfigured = true
             }
             if !session.isRunning { session.startRunning() }
@@ -241,6 +243,22 @@ final class CameraService: NSObject, @unchecked Sendable {
             if d.isFocusModeSupported(.continuousAutoFocus) { d.focusMode = .continuousAutoFocus }
             if d.isExposureModeSupported(.continuousAutoExposure) { d.exposureMode = .continuousAutoExposure }
             if d.isSmoothAutoFocusSupported { d.isSmoothAutoFocusEnabled = true }
+        }
+    }
+    
+    /// Media services can be reset by the system (e.g. another app grabbing the
+    /// camera hardware); restart the session instead of leaving a black preview.
+    
+    private func observeRuntimeErrors() {
+        runtimeErrorObserver = NotificationCenter.default.addObserver(
+            forName: AVCaptureSession.runtimeErrorNotification,
+            object: session,
+            queue: nil
+        ) { [weak self] _ in
+            self?.sessionQueue.async {
+                guard let self, !self.session.isRunning else { return }
+                self.session.startRunning()
+            }
         }
     }
 

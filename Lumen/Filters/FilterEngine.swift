@@ -22,3 +22,4 @@ struct FilterEngine: Sendable {
         return blend.outputImage?.cropped(to: image.extent) ?? full
     }
 }
+

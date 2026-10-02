@@ -10,7 +10,7 @@ settings:
     SWIFT_VERSION: "5.0"
     MARKETING_VERSION: "1.0.0"
     CURRENT_PROJECT_VERSION: "1"
-    DEVELOPMENT_TEAM: ""
+    DEVELOPMENT_TEAM: G6AA4T82BJ
 
 targets:
   Lumen:
@@ -30,7 +30,7 @@ targets:
         NSPhotoLibraryAddUsageDescription: Lumen saves the photos you take to your library.
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.irenapoghosian.lumen
+        PRODUCT_BUNDLE_IDENTIFIER: com.irenapoghosyan.lumencamera
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor

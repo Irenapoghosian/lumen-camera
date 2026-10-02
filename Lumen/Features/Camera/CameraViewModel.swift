@@ -24,7 +24,12 @@ final class CameraViewModel {
     private(set) var focusPoint: CGPoint?
     var toast: String?
 
-    var filter: FilterKind = .original { didSet { syncEngine() } }
+    var filter: FilterKind = .original {
+        didSet {
+            if filter != oldValue { intensity = 1 } // every look starts at full strength
+            syncEngine()
+        }
+    }
     var intensity: Double = 1.0 { didSet { syncEngine() } }
     var flashMode: AVCaptureDevice.FlashMode = .off
     var showGrid = false
@@ -51,16 +56,18 @@ final class CameraViewModel {
     }
 
     // MARK: Lifecycle
+    
+    /// Safe to call repeatedly: also restarts a session the system stopped.
 
     func start() async {
-        guard status != .running else { return }
         guard await CameraService.requestAccess() else {
             status = .denied
             return
         }
         do {
+            let wasRunning = status == .running
             capabilities = try await camera.start()
-            setZoom(capabilities.baseZoom)
+            if !wasRunning { setZoom(capabilities.baseZoom) }
             status = .running
         } catch {
             status = .failed(error.localizedDescription)
