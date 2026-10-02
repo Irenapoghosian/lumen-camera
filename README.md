@@ -17,11 +17,17 @@
 
 ---
 
+<p align="center">
+  <img src="docs/screenshots/hero.png" alt="Lumen running on iPhone with the Original, Fade and Noir filters and the 3× lens">
+</p>
+
 ## Screenshots
 
-| Viewfinder | Filters | Exposure & grid |
-|:--:|:--:|:--:|
-| _coming soon_ | _coming soon_ | _coming soon_ |
+| Original | Fade | Noir | 3× lens |
+|:--:|:--:|:--:|:--:|
+| <img src="docs/screenshots/original.png" width="200"> | <img src="docs/screenshots/fade.png" width="200"> | <img src="docs/screenshots/noir.png" width="200"> | <img src="docs/screenshots/telephoto.png" width="200"> |
+
+<sub>Real screenshots from an iPhone — the filters are rendered live in the viewfinder.</sub>
 
 ## Features
 
