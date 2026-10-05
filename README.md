@@ -39,6 +39,9 @@
 - **Tap to focus & expose** with an aspect-fill-aware coordinate conversion.
 - **Manual exposure compensation** (EV slider).
 - **Flash** off / auto / on, **rule-of-thirds grid**, front/back camera switch.
+- **Level photos in any orientation** — the UI stays in portrait, but `AVCaptureDevice.RotationCoordinator` rotates each capture to the horizon, so landscape shots come out landscape.
+- **Metadata preserved** — filtered photos keep their EXIF/TIFF data (lens, exposure, date) with orientation corrected.
+- **Interruption handling** — phone calls, another app using the camera or thermal pressure show a "Camera paused" state and recover automatically.
 - **HEIC output** (JPEG fallback) saved to Photos with add-only permission.
 - **Polish** — shutter animation, haptics, graceful permission & no-camera states, VoiceOver labels and adjustable actions.
 
@@ -68,6 +71,7 @@ flowchart LR
 
 | Layer | Responsibility |
 |---|---|
+| `CameraControlling` / `PhotoSaving` | Protocols the view model depends on, so the whole UI logic is testable with mocks. |
 | `CameraService` | Owns the capture session. All configuration runs on a private serial queue; frames arrive on a separate video queue. Exposes an `async` API to the UI. |
 | `FilterEngine` / `FilterKind` | Pure, `Sendable` value types. One code path for live frames and stills. |
 | `PreviewRenderer` | `MTKViewDelegate` that renders the latest `CIImage` with a Metal-backed `CIContext` and a `CIRenderDestination`. |
@@ -85,8 +89,10 @@ flowchart LR
 
 ## Tests
 
-Unit tests cover the parts that don't need camera hardware:
+Unit tests cover everything that doesn't need camera hardware:
 
+- `CameraViewModelTests` — the full UI logic against a `MockCamera`: permissions, lens presets, pinch zoom, filter/intensity, focus & exposure, flash, camera switching, capture success/failure and interruptions.
+- `PhotoMetadataTests` — EXIF is kept, orientation reset, stale dimensions removed.
 - `FilterEngineTests` — every filter preserves image size, intensity blending and clamping, mono really removes colour.
 - `CameraMathTests` — tap-to-focus mapping for back/front cameras and cropped aspect-fill previews, zoom/EV clamping.
 - `PreviewRendererTests` — aspect-fill scaling and centring.

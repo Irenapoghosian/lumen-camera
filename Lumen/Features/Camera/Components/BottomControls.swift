@@ -23,7 +23,7 @@ struct BottomControls: View {
 
                 Spacer()
 
-                ShutterButton(isBusy: model.isCapturing) {
+                ShutterButton(isBusy: model.isCapturing || model.interruption != nil) {
                     Task { await model.capture() }
                 }
 

@@ -9,7 +9,7 @@ enum PhotoLibraryError: LocalizedError {
 }
 
 /// Saves encoded image data to the user's photo library (add-only access).
-struct PhotoLibraryService: Sendable {
+struct PhotoLibraryService: PhotoSaving {
 
     func save(_ data: Data) async throws {
         let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)

@@ -32,7 +32,7 @@ enum CameraError: LocalizedError {
 
 /// Owns the AVCaptureSession. All session work happens on `sessionQueue`;
 /// frames are delivered on `videoQueue`.
-final class CameraService: NSObject, @unchecked Sendable {
+final class CameraService: NSObject, CameraControlling, @unchecked Sendable {
 
     private let session = AVCaptureSession()
     private let sessionQueue = DispatchQueue(label: "com.irenapoghosian.lumen.session")
@@ -43,7 +43,10 @@ final class CameraService: NSObject, @unchecked Sendable {
     private var isConfigured = false
     private var captureProcessors: [Int64: PhotoCaptureProcessor] = [:]
     private var subjectAreaObserver: NSObjectProtocol?
-    private var runtimeErrorObserver: NSObjectProtocol?
+    private var sessionObservers: [NSObjectProtocol] = []
+    /// Tracks how the phone is physically held so photos come out level
+    /// even though the UI itself is locked to portrait.
+    private var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
 
     /// Shared with the photo pipeline so every capture matches the preview.
     private let photoContext = CIContext(options: [.cacheIntermediates: false])
@@ -55,12 +58,28 @@ final class CameraService: NSObject, @unchecked Sendable {
         set { engineLock.withLock { _engine = newValue } }
     }
 
-    /// Called on a background queue with each filtered, upright preview frame.
-    var onFrame: (@Sendable (CIImage) -> Void)?
+    private let callbackLock = NSLock()
+    private var _onFrame: (@Sendable (CIImage) -> Void)?
+    private var _onInterruption: (@Sendable (CameraInterruption?) -> Void)?
+
+    var onFrame: (@Sendable (CIImage) -> Void)? {
+        get { callbackLock.withLock { _onFrame } }
+        set { callbackLock.withLock { _onFrame = newValue } }
+    }
+
+    var onInterruption: (@Sendable (CameraInterruption?) -> Void)? {
+        get { callbackLock.withLock { _onInterruption } }
+        set { callbackLock.withLock { _onInterruption = newValue } }
+    }
+
+    deinit {
+        for observer in sessionObservers { NotificationCenter.default.removeObserver(observer) }
+        if let subjectAreaObserver { NotificationCenter.default.removeObserver(subjectAreaObserver) }
+    }
 
     // MARK: - Permission
 
-    static func requestAccess() async -> Bool {
+    func requestAccess() async -> Bool {
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized: return true
         case .notDetermined: return await AVCaptureDevice.requestAccess(for: .video)
@@ -74,7 +93,7 @@ final class CameraService: NSObject, @unchecked Sendable {
         try await onSessionQueue { [self] in
             if !isConfigured {
                 try configureSession(position: .back)
-                observeRuntimeErrors()
+                observeSession()
                 isConfigured = true
             }
             if !session.isRunning { session.startRunning() }
@@ -169,7 +188,9 @@ final class CameraService: NSObject, @unchecked Sendable {
                 settings.photoQualityPrioritization = .balanced
 
                 if let connection = photoOutput.connection(with: .video) {
-                    if connection.isVideoRotationAngleSupported(90) { connection.videoRotationAngle = 90 }
+                    // Level with the horizon however the phone is held (portrait or landscape).
+                    let angle = rotationCoordinator?.videoRotationAngleForHorizonLevelCapture ?? 90
+                    if connection.isVideoRotationAngleSupported(angle) { connection.videoRotationAngle = angle }
                     if connection.isVideoMirroringSupported {
                         connection.automaticallyAdjustsVideoMirroring = false
                         connection.isVideoMirrored = deviceInput?.device.position == .front
@@ -209,6 +230,7 @@ final class CameraService: NSObject, @unchecked Sendable {
         }
         session.addInput(input)
         deviceInput = input
+        rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: device, previewLayer: nil)
         observeSubjectAreaChanges(of: device)
 
         if !session.outputs.contains(videoOutput) {
@@ -245,12 +267,14 @@ final class CameraService: NSObject, @unchecked Sendable {
             if d.isSmoothAutoFocusSupported { d.isSmoothAutoFocusEnabled = true }
         }
     }
-    
-    /// Media services can be reset by the system (e.g. another app grabbing the
-    /// camera hardware); restart the session instead of leaving a black preview.
-    
-    private func observeRuntimeErrors() {
-        runtimeErrorObserver = NotificationCenter.default.addObserver(
+
+    /// Keeps the session alive through system events.
+    private func observeSession() {
+        let center = NotificationCenter.default
+
+        // Media services can be reset by the system; restart instead of
+        // leaving a frozen preview.
+        sessionObservers.append(center.addObserver(
             forName: AVCaptureSession.runtimeErrorNotification,
             object: session,
             queue: nil
@@ -259,7 +283,29 @@ final class CameraService: NSObject, @unchecked Sendable {
                 guard let self, !self.session.isRunning else { return }
                 self.session.startRunning()
             }
-        }
+        })
+
+        // A phone call, another camera app or Split View can take the camera away.
+        sessionObservers.append(center.addObserver(
+            forName: AVCaptureSession.wasInterruptedNotification,
+            object: session,
+            queue: nil
+        ) { [weak self] note in
+            guard
+                let raw = note.userInfo?[AVCaptureSessionInterruptionReasonKey] as? Int,
+                let reason = AVCaptureSession.InterruptionReason(rawValue: raw),
+                let interruption = CameraInterruption(reason: reason)
+            else { return }
+            self?.onInterruption?(interruption)
+        })
+
+        sessionObservers.append(center.addObserver(
+            forName: AVCaptureSession.interruptionEndedNotification,
+            object: session,
+            queue: nil
+        ) { [weak self] _ in
+            self?.onInterruption?(nil)
+        })
     }
 
     /// After a tap-to-focus, return to continuous autofocus once the scene changes.

@@ -79,7 +79,13 @@ struct CameraScreen: View {
                     .opacity(model.shutterFlash ? 0.85 : 0)
                     .animation(.easeOut(duration: 0.12), value: model.shutterFlash)
                     .allowsHitTesting(false)
+
+                if let interruption = model.interruption {
+                    InterruptionOverlay(message: interruption.message)
+                        .transition(.opacity)
+                }
             }
+            .animation(.easeInOut(duration: 0.25), value: model.interruption)
             .contentShape(Rectangle())
             .gesture(
                 SpatialTapGesture().onEnded { value in
@@ -120,6 +126,30 @@ struct CameraScreen: View {
                     withAnimation { model.toast = nil }
                 }
         }
+    }
+}
+
+/// Shown over the viewfinder while the system has taken the camera away.
+private struct InterruptionOverlay: View {
+    let message: String
+
+    var body: some View {
+        ZStack {
+            Rectangle().fill(.ultraThinMaterial)
+            VStack(spacing: 12) {
+                Image(systemName: "pause.circle")
+                    .font(.system(size: 44, weight: .light))
+                    .foregroundStyle(Color.accentColor)
+                Text("Camera paused")
+                    .font(.headline)
+                Text(message)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(24)
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 

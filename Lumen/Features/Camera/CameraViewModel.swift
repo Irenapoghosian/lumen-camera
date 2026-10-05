@@ -22,6 +22,8 @@ final class CameraViewModel {
     private(set) var captureCount = 0
     private(set) var lastThumbnail: UIImage?
     private(set) var focusPoint: CGPoint?
+    /// Set while the system has taken the camera away (call, another app, heat).
+    private(set) var interruption: CameraInterruption?
     var toast: String?
 
     var filter: FilterKind = .original {
@@ -41,26 +43,31 @@ final class CameraViewModel {
     // MARK: Dependencies
 
     let renderer: PreviewRenderer?
-    private let camera: CameraService
-    private let library: PhotoLibraryService
+    private let camera: CameraControlling
+    private let library: PhotoSaving
     private var zoomAtGestureStart: CGFloat = 1
     private var focusResetTask: Task<Void, Never>?
 
-    init(camera: CameraService = CameraService(), library: PhotoLibraryService = PhotoLibraryService()) {
+    init(
+        camera: CameraControlling = CameraService(),
+        library: PhotoSaving = PhotoLibraryService(),
+        renderer: PreviewRenderer? = PreviewRenderer()
+    ) {
         self.camera = camera
         self.library = library
-        self.renderer = PreviewRenderer()
+        self.renderer = renderer
 
-        let renderer = self.renderer
         camera.onFrame = { image in renderer?.enqueue(image) }
+        camera.onInterruption = { [weak self] interruption in
+            Task { @MainActor in self?.interruption = interruption }
+        }
     }
 
     // MARK: Lifecycle
-    
-    /// Safe to call repeatedly: also restarts a session the system stopped.
 
+    /// Safe to call repeatedly: also restarts a session the system stopped.
     func start() async {
-        guard await CameraService.requestAccess() else {
+        guard await camera.requestAccess() else {
             status = .denied
             return
         }
@@ -68,6 +75,7 @@ final class CameraViewModel {
             let wasRunning = status == .running
             capabilities = try await camera.start()
             if !wasRunning { setZoom(capabilities.baseZoom) }
+            interruption = nil
             status = .running
         } catch {
             status = .failed(error.localizedDescription)
@@ -156,7 +164,7 @@ final class CameraViewModel {
     // MARK: Capture
 
     func capture() async {
-        guard status == .running, !isCapturing else { return }
+        guard status == .running, interruption == nil, !isCapturing else { return }
         isCapturing = true
         defer { isCapturing = false }
 
