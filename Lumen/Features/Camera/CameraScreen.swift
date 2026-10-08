@@ -18,6 +18,11 @@ struct CameraScreen: View {
                 camera
             }
         }
+        .background {
+            if model.status == .running {
+                HardwareShutter { Task { await model.capture() } }
+            }
+        }
         .preferredColorScheme(.dark)
         .task { await model.start() }
         .onChange(of: scenePhase) { _, phase in
@@ -80,12 +85,27 @@ struct CameraScreen: View {
                     .animation(.easeOut(duration: 0.12), value: model.shutterFlash)
                     .allowsHitTesting(false)
 
+                if model.isComparing {
+                    Text("ORIGINAL")
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .tracking(1.5)
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.accentColor, in: Capsule())
+                        .padding(.top, 12)
+                        .frame(maxHeight: .infinity, alignment: .top)
+                        .allowsHitTesting(false)
+                        .transition(.opacity)
+                }
+
                 if let interruption = model.interruption {
                     InterruptionOverlay(message: interruption.message)
                         .transition(.opacity)
                 }
             }
             .animation(.easeInOut(duration: 0.25), value: model.interruption)
+            .animation(.easeOut(duration: 0.15), value: model.isComparing)
             .contentShape(Rectangle())
             .gesture(
                 SpatialTapGesture().onEnded { value in

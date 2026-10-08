@@ -28,11 +28,16 @@ final class CameraViewModel {
 
     var filter: FilterKind = .original {
         didSet {
-            if filter != oldValue { intensity = 1 } // every look starts at full strength
+            if filter != oldValue {
+                intensity = 1 // every look starts at full strength
+                isComparing = false
+            }
             syncEngine()
         }
     }
     var intensity: Double = 1.0 { didSet { syncEngine() } }
+    /// While true the viewfinder shows the unfiltered frame (hold-to-compare).
+    var isComparing = false { didSet { syncEngine() } }
     var flashMode: AVCaptureDevice.FlashMode = .off
     var showGrid = false
     var showExposure = false
@@ -165,6 +170,7 @@ final class CameraViewModel {
 
     func capture() async {
         guard status == .running, interruption == nil, !isCapturing else { return }
+        isComparing = false // always save the look the user chose
         isCapturing = true
         defer { isCapturing = false }
 
@@ -183,7 +189,9 @@ final class CameraViewModel {
     // MARK: Private
 
     private func syncEngine() {
-        camera.engine = FilterEngine(filter: filter, intensity: intensity)
+        camera.engine = isComparing
+            ? FilterEngine(filter: .original)
+            : FilterEngine(filter: filter, intensity: intensity)
     }
 
     private func flashShutter() {

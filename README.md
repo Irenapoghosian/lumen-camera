@@ -13,6 +13,7 @@
   <img alt="Swift" src="https://img.shields.io/badge/Swift-5.9-orange">
   <img alt="SwiftUI" src="https://img.shields.io/badge/UI-SwiftUI-blue">
   <img alt="CI" src="https://github.com/Irenapoghosian/lumen-camera/actions/workflows/ci.yml/badge.svg">
+  <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-lightgrey">
 </p>
 
 ---
@@ -35,6 +36,8 @@
 - **Live filters at 60 fps** — every frame is filtered with Core Image and drawn into an `MTKView` on the GPU.
 - **What you see is what you save** — the preview and the full-resolution photo go through the *same* `FilterEngine`, so captures match the viewfinder exactly.
 - **Adjustable intensity** — blend any look from 0–100 %.
+- **Hold to compare** — press and hold to see the frame without the filter.
+- **Hardware shutter** — the volume buttons (and Camera Control) take a photo, like the system Camera app (`AVCaptureEventInteraction`).
 - **Lens shortcuts** — 0.5× / 1× / 2× / 3× that map to the real ultra-wide / wide / tele lenses on virtual devices, plus pinch-to-zoom.
 - **Tap to focus & expose** with an aspect-fill-aware coordinate conversion.
 - **Manual exposure compensation** (EV slider).
@@ -44,6 +47,7 @@
 - **Interruption handling** — phone calls, another app using the camera or thermal pressure show a "Camera paused" state and recover automatically.
 - **HEIC output** (JPEG fallback) saved to Photos with add-only permission.
 - **Polish** — shutter animation, haptics, graceful permission & no-camera states, VoiceOver labels and adjustable actions.
+- **Privacy first** — no tracking and no data collection, declared in a privacy manifest; Photos access is add-only.
 
 ## Architecture
 
@@ -91,7 +95,7 @@ flowchart LR
 
 Unit tests cover everything that doesn't need camera hardware:
 
-- `CameraViewModelTests` — the full UI logic against a `MockCamera`: permissions, lens presets, pinch zoom, filter/intensity, focus & exposure, flash, camera switching, capture success/failure and interruptions.
+- `CameraViewModelTests` — the full UI logic against a `MockCamera`: permissions, lens presets, pinch zoom, filter/intensity, hold-to-compare, focus & exposure, flash, camera switching, capture success/failure and interruptions.
 - `PhotoMetadataTests` — EXIF is kept, orientation reset, stale dimensions removed.
 - `FilterEngineTests` — every filter preserves image size, intensity blending and clamping, mono really removes colour.
 - `CameraMathTests` — tap-to-focus mapping for back/front cameras and cropped aspect-fill previews, zoom/EV clamping.
@@ -115,12 +119,19 @@ Select your team under *Signing & Capabilities*, then run on a device.
 
 ## Roadmap
 
-- [ ] Video recording with filters (AVAssetWriter)
-- [ ] ProRAW / RAW capture
-- [ ] Manual shutter speed & ISO
+- [x] Live filters with adjustable intensity
+- [x] Lens shortcuts, tap to focus, exposure, flash, grid
+- [x] Level landscape captures and preserved metadata
+- [x] Interruption handling
+- [x] Hold to compare and hardware shutter button
+- [ ] Video recording with filters (`AVAssetWriter`)
+- [ ] ProRAW capture, manual shutter speed & ISO
 - [ ] Custom LUT filters (`CIColorCube`)
-- [ ] Before/after split view
-- [ ] In-app gallery
+- [ ] Swift 6 strict concurrency
+
+## License
+
+MIT — see [LICENSE](LICENSE).
 
 ## Author
 

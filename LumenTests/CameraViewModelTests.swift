@@ -86,6 +86,40 @@ final class CameraViewModelTests: XCTestCase {
         XCTAssertEqual(camera.engine.intensity, 0.4, accuracy: 0.0001)
     }
 
+    // MARK: Compare
+
+    func testHoldToCompareShowsOriginalThenRestoresLook() {
+        model.filter = .noir
+        model.intensity = 0.6
+
+        model.isComparing = true
+        XCTAssertEqual(camera.engine.filter, .original)
+
+        model.isComparing = false
+        XCTAssertEqual(camera.engine.filter, .noir)
+        XCTAssertEqual(camera.engine.intensity, 0.6, accuracy: 0.0001)
+    }
+
+    func testCaptureWhileComparingSavesTheChosenLook() async {
+        await model.start()
+        model.filter = .mono
+        model.isComparing = true
+
+        await model.capture()
+
+        XCTAssertFalse(model.isComparing)
+        XCTAssertEqual(camera.engine.filter, .mono)
+    }
+
+    func testChangingFilterEndsCompare() {
+        model.filter = .fade
+        model.isComparing = true
+        model.filter = .chrome
+
+        XCTAssertFalse(model.isComparing)
+        XCTAssertEqual(camera.engine.filter, .chrome)
+    }
+
     // MARK: Focus & exposure
 
     func testTapToFocusForwardsPointAndResetsExposure() async {

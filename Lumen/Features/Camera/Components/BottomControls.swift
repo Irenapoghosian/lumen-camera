@@ -11,9 +11,13 @@ struct BottomControls: View {
             FilterCarousel(selection: $model.filter)
 
             if model.filter != .original {
-                IntensitySlider(value: $model.intensity)
-                    .padding(.horizontal, 40)
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                HStack(spacing: 14) {
+                    IntensitySlider(value: $model.intensity)
+                    CompareButton(isComparing: $model.isComparing)
+                }
+                .padding(.leading, 40)
+                .padding(.trailing, 24)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
 
             Spacer(minLength: 0)
@@ -38,6 +42,29 @@ struct BottomControls: View {
             .padding(.bottom, 12)
         }
         .animation(.snappy, value: model.filter == .original)
+    }
+}
+
+/// Press and hold to see the frame without the filter, like Instagram's editor.
+struct CompareButton: View {
+    @Binding var isComparing: Bool
+
+    var body: some View {
+        Image(systemName: "square.split.2x1")
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(isComparing ? Color.black : .white)
+            .frame(width: 36, height: 36)
+            .background(isComparing ? Color.accentColor : .white.opacity(0.08), in: Circle())
+            .contentShape(Circle())
+            .onLongPressGesture(minimumDuration: .infinity, maximumDistance: 60) {
+                // Never fires: the gesture only exists to track pressing.
+            } onPressingChanged: { pressing in
+                isComparing = pressing
+            }
+            .sensoryFeedback(.selection, trigger: isComparing)
+            .accessibilityLabel("Compare with original")
+            .accessibilityHint("Hold to see the photo without the filter")
+            .accessibilityAddTraits(.isButton)
     }
 }
 
